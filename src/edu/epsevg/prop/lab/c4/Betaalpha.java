@@ -5,7 +5,6 @@
  */
 package edu.epsevg.prop.lab.c4;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -20,22 +19,31 @@ public class Betaalpha implements Jugador, IAuto {
 
     public Betaalpha() {
         nom = "BetaAlpha AI";
-        depth = 2;
+        depth = 6;
+    }
+
+    public Betaalpha(int depth) {
+        this.nom = "BetaAlpha AI";
+        this.depth = depth;
     }
 
     // si moviment vol dir torn jugador nostre, volem valor MAX
+    @Override
     public int moviment(Tauler t, int color) {
-        int valor, millorCol=0;
+        int valor, millorCol = 0;
         int maxValor = Integer.MIN_VALUE;
-        for (int i=0; i<t.getMida(); i++) {
+        for (int i = 0; i < t.getMida(); i++) {
             Tauler child = new Tauler(t);
-            child.afegeix(i, color);
-            valor = minValor(t, Integer.MIN_VALUE, Integer.MAX_VALUE, depth, color);
-            System.out.println("columna "+i+" valor="+valor);
-            if (valor > maxValor) {
-                maxValor = valor;
-                millorCol = i;
+            if (child.movpossible(i)) {
+                child.afegeix(i, color);
+                valor = maxValor(child, Integer.MIN_VALUE, Integer.MAX_VALUE, depth, color);
+                System.out.println("columna " + i + " valor=" + valor);
+                if (valor > maxValor) {
+                    maxValor = valor;
+                    millorCol = i;
+                }
             }
+
         }
         System.out.println(millorCol);
         return millorCol;
@@ -46,8 +54,7 @@ public class Betaalpha implements Jugador, IAuto {
     }
 
     /**
-     * Minimitzar valor
-     *
+     * Minimitzar valor de l'estat
      * @param estat
      * @param alfa
      * @param beta
@@ -76,6 +83,15 @@ public class Betaalpha implements Jugador, IAuto {
         return beta;
     }
 
+    /**
+     * Funcio per maximitzar el valor de l'estat
+     * @param estat
+     * @param alfa
+     * @param beta
+     * @param depth
+     * @param player
+     * @return 
+     */
     private int maxValor(Tauler estat, int alfa, int beta, int depth, int player) {
         if (Terminal(estat) || depth == 0) {
             return eval(estat, player);
@@ -118,10 +134,14 @@ public class Betaalpha implements Jugador, IAuto {
         return heuristica;
     }
 
+    private int eval2(Tauler estat, int player) {
+        return -1;
+    }
+
     /**
      * Mirem al voltant de la casella per saber si es una bona posicio Comemcem
      * per la pos fila,col i mirem només 3 més enlla com a max Sense sortir del
-     * tauler
+     * tauler, igual per diagonals
      *
      * @param estat
      * @param fila
@@ -160,7 +180,9 @@ public class Betaalpha implements Jugador, IAuto {
         for (int i = fila + 1; i < estat.getMida() && i <= fila + 3; i++) {
             if (estat.getColor(i, col) == posPlayer) {
                 comptador++;
-            } else break;
+            } else {
+                break;
+            }
         }
         if (posPlayer == player) {
             heuristica += mapValue(comptador);
@@ -170,33 +192,95 @@ public class Betaalpha implements Jugador, IAuto {
 
         // diagonals
         // TODO
+        comptador = 0;
+        for (int i = 0; i < estat.getMida() - 3; i++) {
+            for (int j = 0; j < estat.getMida() - 3; j++) {
+                int current = estat.getColor(i, j);
+                if (current == estat.getColor(i + 1, j + 1) && current == estat.getColor(i + 2, j + 2)) {
+                    comptador = comptador + 2;
+                } else if (current == estat.getColor(i + 1, j + 1)) {
+                    comptador = comptador + 1;
+                }
+            }
+        }
+        if (posPlayer == player) {
+            heuristica += mapValue(comptador);
+        } else {
+            heuristica -= mapValue(comptador);
+        }
+
+        // diagonals
+        // TODO
+        comptador = 0;
+        for (int i = 0; i < estat.getMida() - 3; i++) {
+            for (int j = 3; j < estat.getMida() - 3; j++) {
+                int current = estat.getColor(i, j);
+                if (current == estat.getColor(i + 1, j - 1) && current == estat.getColor(i + 2, j - 2)) {
+                    comptador = comptador + 2;
+                } else if (current == estat.getColor(i + 1, j - 1)) {
+                    comptador = comptador + 1;
+                }
+            }
+        }
+        if (posPlayer == player) {
+            heuristica += mapValue(comptador);
+        } else {
+            heuristica -= mapValue(comptador);
+        }
+
         return heuristica;
     }
-    
-    private int espaisBlanc (Tauler estat, int fila, int col) {
+
+    /**
+     * Funcio per comptar els espais en blanc per completar 
+     * @param estat
+     * @param fila
+     * @param col
+     * @return 
+     */
+    private int espaisBlanc(Tauler estat, int fila, int col) {
         int espais = 0;
-        for (int i=0; i<4 && fila >= 0; i++)   {
+        for (int i = 0; i < 4 && fila >= 0; i++) {
             if (estat.getColor(fila, col) == 0) {
                 espais++;
-            } else break;
+            } else {
+                break;
+            }
             fila -= i;
         }
         return espais;
     }
-    
-    private int mapValue (int k) {
-        if (k==1) return 1;
-        if (k==2) return 100;
-        if (k==3) return 1000;
+
+    /**
+     * Funció que puntua segons el nombre de fitxes seguides
+     * @param k
+     * @return 
+     */
+    private int mapValue(int k) {
+        if (k == 1) {
+            return 1;
+        }
+        if (k == 2) {
+            return 100;
+        }
+        if (k == 3) {
+            return 1000;
+        }
         return 10000;
     }
-    
-    private int mapValue (int k, int falten) {
+
+    private int mapValue(int k, int falten) {
         int valor = 4 - falten;
-        if (k==1) return 1*valor;
-        if (k==2) return 100*valor;
-        if (k==3) return 1000*valor;
-        return 10000;
+        if (k == 1) {
+            return 1 * valor;
+        }
+        if (k == 2) {
+            return 10 * valor;
+        }
+        if (k == 3) {
+            return 100 * valor;
+        }
+        return 1000;
     }
 
     private class Valor {
